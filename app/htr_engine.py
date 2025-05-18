@@ -13,11 +13,14 @@ class EnhancedHTREngine:
     Handles paragraphs, pages, and complete documents by line segmentation.
     """
     
-    def __init__(self, hf_token=None):
+    def __init__(self, hf_token=None, empty_line_threshold=0.01):
         # Initialize model and processor caches
         self.models = {}
         self.processors = {}
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        
+        # Empty line detection threshold (proportion of black pixels)
+        self.empty_line_threshold = empty_line_threshold
         
         # Print device information
         print(f"Using device: {self.device}")
@@ -58,6 +61,39 @@ class EnhancedHTREngine:
                 raise
                 
         return self.models[model_name], self.processors[model_name]
+    
+    def is_empty_line(self, image):
+        """
+        Detect if a line image is empty or contains minimal text.
+        
+        Args:
+            image (PIL.Image): Line image
+            
+        Returns:
+            bool: True if the line is considered empty
+        """
+        # Convert to numpy array
+        img_array = np.array(image)
+        
+        # Ensure grayscale
+        if len(img_array.shape) == 3:
+            gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+        else:
+            gray = img_array
+            
+        # Apply binary thresholding to identify text pixels
+        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        
+        # Calculate the proportion of text pixels
+        total_pixels = binary.shape[0] * binary.shape[1]
+        if total_pixels == 0:
+            return True
+            
+        text_pixels = np.count_nonzero(binary)
+        text_ratio = text_pixels / total_pixels
+        
+        # Return True if the ratio is below the threshold
+        return text_ratio < self.empty_line_threshold
     
     def segment_text_lines(self, image, padding=5):
         """
@@ -194,6 +230,10 @@ class EnhancedHTREngine:
         Returns:
             tuple: (text, confidence)
         """
+        # Check if the line is empty before processing
+        if self.is_empty_line(line_image):
+            return "", 0.0
+            
         model, processor = self.load_model(model_name)
         
         # Ensure image is in RGB format
@@ -275,7 +315,7 @@ class EnhancedHTREngine:
             # Combine results
             if combine_lines and all_texts:
                 results["full_text"] = "\n".join(all_texts)
-                results["overall_confidence"] = np.mean(all_confidences)
+                results["overall_confidence"] = np.mean(all_confidences) if all_confidences else 0.0
             
         elif processing_mode == "paragraphs":
             # Process paragraph by paragraph
@@ -300,7 +340,7 @@ class EnhancedHTREngine:
                 # Combine paragraph
                 if paragraph_texts:
                     para_text = " ".join(paragraph_texts)
-                    para_confidence = np.mean(paragraph_confidences)
+                    para_confidence = np.mean(paragraph_confidences) if paragraph_confidences else 0.0
                     
                     results["paragraphs"].append({
                         "text": para_text,
@@ -314,7 +354,7 @@ class EnhancedHTREngine:
             # Combine all paragraphs
             if all_paragraph_texts:
                 results["full_text"] = "\n\n".join(all_paragraph_texts)
-                results["overall_confidence"] = np.mean(all_confidences)
+                results["overall_confidence"] = np.mean(all_confidences) if all_confidences else 0.0
         
         return results
     
@@ -337,16 +377,21 @@ class EnhancedHTREngine:
             line_data = self.segment_text_lines(image)
             
             # Draw bounding boxes around lines
-            for i, (_, bbox) in enumerate(line_data):
+            for i, (line_img, bbox) in enumerate(line_data):
                 x, y, w, h = bbox
-                draw.rectangle([x, y, x + w, y + h], outline="red", width=2)
-                draw.text((x, y - 15), f"Line {i+1}", fill="red")
+                
+                # Check if line is empty and color-code accordingly
+                is_empty = self.is_empty_line(line_img)
+                outline_color = "green" if is_empty else "red"  # Green for empty, red for text
+                
+                draw.rectangle([x, y, x + w, y + h], outline=outline_color, width=2)
+                label = f"Empty {i+1}" if is_empty else f"Line {i+1}"
+                draw.text((x, y - 15), label, fill=outline_color)
                 
         elif processing_mode == "paragraphs":
             paragraph_images = self.segment_paragraphs(image)
             
             # Get paragraph bounds and draw
-            img_array = np.array(image)
             current_y = 0
             
             for i, para_img in enumerate(paragraph_images):

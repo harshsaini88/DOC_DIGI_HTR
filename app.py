@@ -23,12 +23,10 @@ if 'processed_image' not in st.session_state:
 if 'segmentation_visualization' not in st.session_state:
     st.session_state.segmentation_visualization = None
 
-# Initialize the Enhanced HTR engine
+# Initialize the Enhanced HTR engine with empty line threshold
 @st.cache_resource
-def load_enhanced_htr_engine():
-    return EnhancedHTREngine()
-
-htr_engine = load_enhanced_htr_engine()
+def load_enhanced_htr_engine(empty_line_threshold=0.01):
+    return EnhancedHTREngine(empty_line_threshold=empty_line_threshold)
 
 # Title and description
 st.title("📄 Document Handwritten Text Recognition")
@@ -65,8 +63,22 @@ if processing_mode == "lines":
 else:
     min_paragraph_gap = st.sidebar.slider("Min Paragraph Gap", 10, 50, 30, help="Minimum gap to separate paragraphs")
 
+# Empty line detection options
+st.sidebar.subheader("🔍 Empty Line Detection")
+empty_line_threshold = st.sidebar.slider(
+    "Empty Line Threshold", 
+    0.001, 0.05, 0.01, 
+    step=0.001,
+    format="%.3f",
+    help="Threshold for detecting empty lines (proportion of pixels that must be text)"
+)
+show_empty_lines = st.sidebar.checkbox("Show Empty Lines", value=False, help="Include empty lines in results")
+
 # Visualization options
 show_segmentation = st.sidebar.checkbox("Show Segmentation", value=False, help="Display segmentation overlay")
+
+# Load the HTR engine with configured threshold
+htr_engine = load_enhanced_htr_engine(empty_line_threshold)
 
 # Function to process and recognize document
 def process_and_recognize_document(image):
@@ -102,8 +114,15 @@ def process_and_recognize_document(image):
             results['preprocessing_settings'] = {
                 'denoise': denoise,
                 'contrast_enhance': contrast_enhance,
-                'deskew': deskew
+                'deskew': deskew,
+                'empty_line_threshold': empty_line_threshold,
+                'show_empty_lines': show_empty_lines
             }
+            
+            # Filter out empty lines if requested
+            if not show_empty_lines and processing_mode == "lines":
+                results['lines'] = [line for line in results['lines'] if line['text'].strip()]
+                results['full_text'] = "\n".join([line['text'] for line in results['lines'] if line['text'].strip()])
             
             # Store results in session state
             st.session_state.recognition_results = results
@@ -184,10 +203,15 @@ if uploaded_file is not None:
                 st.subheader("📏 Line-by-Line Results")
                 
                 for i, line in enumerate(results['lines']):
-                    if line['text'].strip():
-                        with st.expander(f"Line {i+1} (Confidence: {line['confidence']:.3f})"):
-                            st.write(f"**Text:** {line['text']}")
-                            st.write(f"**Confidence:** {line['confidence']:.3f}")
+                    if line['text'].strip() or results['preprocessing_settings'].get('show_empty_lines', False):
+                        confidence_color = "red" if line['confidence'] < 0.5 else "green"
+                        line_label = f"Line {i+1}" if line['text'].strip() else f"Empty Line {i+1}"
+                        with st.expander(f"{line_label} (Confidence: {line['confidence']:.3f})"):
+                            if line['text'].strip():
+                                st.write(f"**Text:** {line['text']}")
+                            else:
+                                st.write("**Text:** <empty line>")
+                            st.write(f"**Confidence:** :{confidence_color}[{line['confidence']:.3f}]")
                             st.write(f"**Bounding Box:** {line['bbox']}")
                             
             elif results['processing_mode'] == 'paragraphs' and results['paragraphs']:
@@ -214,6 +238,8 @@ if uploaded_file is not None:
                     st.metric("Total Lines", len(results['lines']))
                     non_empty_lines = len([l for l in results['lines'] if l['text'].strip()])
                     st.metric("Lines with Text", non_empty_lines)
+                    if not results['preprocessing_settings'].get('show_empty_lines', False):
+                        st.metric("Empty Lines Filtered", len(results['lines']) - non_empty_lines)
                 else:
                     st.metric("Total Paragraphs", len(results['paragraphs']))
                     total_lines = sum(p['line_count'] for p in results['paragraphs'])
@@ -256,4 +282,5 @@ with st.expander("📋 Example Use Cases"):
     - Enable segmentation visualization to verify proper text detection
     - Adjust padding/gap settings based on your document layout
     - Try different preprocessing combinations for optimal results
+    - Adjust the empty line threshold to properly filter out spaces between text
     """)
