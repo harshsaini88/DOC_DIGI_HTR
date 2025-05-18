@@ -17,7 +17,7 @@ A complete Handwritten Text Recognition (HTR) system built with a Streamlit web 
 * **Sample Image Gallery**: Test with provided examples
   ➤ Sample images available in [`data/sample_images`](data/sample_images)
 * **Research Report**: Detailed system analysis and findings
-  ➤ See [`research/research_report.md`](research/research_report.md)
+  ➤ See [`research/research_report.md`](research/)
 * **Docker Support**: Easy deployment with Docker and docker-compose
 
 ## Project Structure
