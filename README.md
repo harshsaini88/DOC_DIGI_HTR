@@ -53,24 +53,7 @@ DOC_DIGI_HTR/
 
 ## Quick Start
 
-### Using Docker (Recommended)
-
-1. Clone this repository:
-
-   ```bash
-   git clone https://github.com/harshsaini88/DOC_DIGI_HTR.git
-   cd DOC_DIGI_HTR
-   ```
-
-2. Build and run the Docker container:
-
-   ```bash
-   docker-compose up --build
-   ```
-
-3. Access the application at `http://localhost:8501`
-
-### Manual Installation
+### Manual Installation (Recommended)
 
 1. Clone this repository:
 
@@ -99,3 +82,20 @@ DOC_DIGI_HTR/
    ```
 
 5. Access the application at `http://localhost:8501`
+
+### Using Docker 
+
+1. Clone this repository:
+
+   ```bash
+   git clone https://github.com/harshsaini88/DOC_DIGI_HTR.git
+   cd DOC_DIGI_HTR
+   ```
+
+2. Build and run the Docker container:
+
+   ```bash
+   docker-compose up --build
+   ```
+
+3. Access the application at `http://localhost:8501`
