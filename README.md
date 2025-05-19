@@ -143,6 +143,7 @@ If you encounter model download issues:
 - Check your internet connection
 - Ensure you have sufficient disk space
 - Try downloading models directly:
+ 
   ```python
   from transformers import TrOCRProcessor, VisionEncoderDecoderModel
   
