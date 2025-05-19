@@ -53,6 +53,37 @@ DOC_DIGI_HTR/
 
 ## Quick Start
 
+### Setting Up Hugging Face Access Token
+
+This application downloads pre-trained models from Hugging Face Hub. To avoid download issues:
+
+1. Create a Hugging Face account at [huggingface.co](https://huggingface.co/join)
+2. Generate an access token:
+   - Go to your [Hugging Face profile settings](https://huggingface.co/settings/tokens)
+   - Click "New token"
+   - Name your token (e.g., "HTR-App-Token")
+   - Select "Read" access
+   - Click "Generate token"
+3. Copy your access token
+
+4. Set up the token in your environment:
+
+   ```bash
+   # Linux/macOS
+   export HUGGINGFACE_TOKEN=your_token_here
+   
+   # Windows (Command Prompt)
+   set HUGGINGFACE_TOKEN=your_token_here
+   
+   # Windows (PowerShell)
+   $env:HUGGINGFACE_TOKEN="your_token_here"
+   ```
+
+   Alternatively, create a `.env` file in the project root:
+   ```
+   HUGGINGFACE_TOKEN=your_token_here
+   ```
+
 ### Manual Installation (Recommended)
 
 1. Clone this repository:
@@ -92,10 +123,34 @@ DOC_DIGI_HTR/
    cd DOC_DIGI_HTR
    ```
 
-2. Build and run the Docker container:
+2. Create a `.env` file with your Hugging Face token:
+   ```
+   HUGGINGFACE_TOKEN=your_token_here
+   ```
+
+3. Build and run the Docker container:
 
    ```bash
    docker-compose up --build
    ```
 
-3. Access the application at `http://localhost:8501`
+4. Access the application at `http://localhost:8501`
+
+## Troubleshooting
+
+If you encounter model download issues:
+- Verify your Hugging Face token is correctly set
+- Check your internet connection
+- Ensure you have sufficient disk space
+- Try downloading models directly:
+  ```python
+  from transformers import TrOCRProcessor, VisionEncoderDecoderModel
+  
+  # Set token first
+  from huggingface_hub import login
+  login(token="your_token_here")
+  
+  # Then download models
+  processor = TrOCRProcessor.from_pretrained("microsoft/trocr-base-handwritten")
+  model = VisionEncoderDecoderModel.from_pretrained("microsoft/trocr-base-handwritten")
+  ```
